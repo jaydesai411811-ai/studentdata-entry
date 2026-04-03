@@ -7,12 +7,13 @@ st.set_page_config(page_title="Valsad Hub Pro", layout="wide", initial_sidebar_s
 st.markdown("""
     <style>
     .main { background-color: #f8f9fa; }
-    .stButton>button { width: 100%; border-radius: 5px; height: 3em; background-color: #007bff; color: white; }
-    .stTextInput>div>div>input { border-radius: 5px; }
-    .stMetric { background-color: #ffffff; padding: 10px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    .stButton>button { width: 100%; border-radius: 5px; height: 3em; background-color: #007bff; color: white; border: none; }
+    .stButton>button:hover { background-color: #0056b3; color: white; }
+    .stMetric { background-color: #ffffff; padding: 15px; border-radius: 10px; border: 1px solid #e9ecef; }
     [data-testid="stSidebar"] { background-color: #f1f3f5; border-right: 1px solid #dee2e6; }
+    div[data-testid="stExpander"] { border: 1px solid #dee2e6; border-radius: 10px; }
     </style>
-    """, unsafe_allow_用水=True)
+    """, unsafe_allow_html=True)
 
 # --- AUTOMATIONS ---
 if not os.path.exists("backups"): os.makedirs("backups")
@@ -24,8 +25,7 @@ def save_and_backup(dataframe, filename):
 
 # --- SIDEBAR: NAVIGATION & FILE MANAGER ---
 with st.sidebar:
-    st.image("https://img.icons8.com/fluency/96/database.png", width=80)
-    st.title("Admin Hub")
+    st.title("⚙️ Admin Hub")
     
     st.subheader("📁 Database Selection")
     all_files = [f for f in os.listdir() if f.endswith('.xlsx')]
@@ -37,10 +37,14 @@ with st.sidebar:
 
     st.markdown("---")
     st.subheader("📊 System Status")
-    df = pd.read_excel(F)
+    try:
+        df = pd.read_excel(F)
+    except:
+        df = pd.DataFrame(columns=["Sr No", "Name", "Class", "Division", "Aadhar No", "DOB", "DOB Words"])
+    
     st.metric("Total Records", len(df))
-    st.info("🤖 Auto-Backup: **ON**")
-    st.info("🧼 Auto-Clean: **ON**")
+    st.success("🤖 Auto-Backup: Active")
+    st.success("🧼 Auto-Clean: Active")
 
     # --- DUPLICATE SCANNER ---
     if "Aadhar No" in df.columns and not df.empty:
@@ -70,21 +74,21 @@ def gb(d):
     m=["","જાન્યુઆરી","ફેબ્રુઆરી","માર્ચ","એપ્રિલ","મે","જૂન","જુલાઈ","ઓગસ્ટ","સપ્ટેમ્બર","ઓક્ટોબર","નવેમ્બર","ડિસેમ્બર"]
     return f"{str(d.day).translate(n)} {m[d.month]} {str(d.year).translate(n)}"
 
-# --- TABS WITH BETTER ICONS ---
+# --- TABS ---
 t1, t2, t3, t4, t5 = st.tabs(["📝 Add Student", "📂 Bulk Import", "🔎 Quick Search", "📊 Analytics", "🛠️ Advanced Edit"])
 
 with t1:
     st.subheader("Student Registration Form")
     if all(col in df.columns for col in C):
-        with st.container(border=True):
+        with st.container():
             col1, col2 = st.columns(2)
             with col1:
                 s = st.number_input("Serial Number", min_value=1)
                 n = st.text_input("Full Name (Auto-Formatting)")
-                c = st.selectbox("Current Class", ["11", "12", "Other"])
+                c = st.selectbox("Current Class", ["૧", "૨","૩","૪","૫","૬","૭","૮","૯","૧૦","૧૧","૧૨","Other"])
             with col2:
                 a = st.text_input("Aadhar Card No", max_chars=12)
-                d = st.selectbox("Division/Section", ["A", "B", "C", "D"])
+                d = st.selectbox("Division/Section", ["અ ", "બ " ])
                 db = st.date_input("Date of Birth", min_value=datetime.date(2000,1,1))
             
             if st.button("📥 Save to Database"):
@@ -94,29 +98,25 @@ with t1:
                     save_and_backup(df, F)
                     st.success(f"Successfully added {n_clean}!")
                     st.rerun()
-                else: st.error("Validation Error: Check Name, Aadhar length (12), or Duplicates.")
+                else: st.error("Check Name, Aadhar length (12), or Duplicates.")
     else: st.error("Standard columns missing in this file.")
 
 with t2:
     st.subheader("Data Migration Tool")
-    with st.expander("Show Required Format"):
-        st.write(f"Columns must be: {C}")
     u = st.file_uploader("Upload CSV or Excel", type=['csv', 'xlsx'])
-    if u and st.button("🚀 Process Bulk Upload"):
+    if u and st.button(" Process Bulk Upload"):
         try:
             nd = pd.read_csv(u) if u.name.endswith('.csv') else pd.read_excel(u)
             if "Name" in nd.columns: nd["Name"] = nd["Name"].astype(str).str.title()
-            if "Aadhar No" in df.columns and "Aadhar No" in nd.columns:
-                nd = nd[~nd["Aadhar No"].astype(str).isin(df["Aadhar No"].astype(str).tolist())]
-            df = pd.concat([df, nd])
+            df = pd.concat([df, nd]).drop_duplicates(subset=["Aadhar No"] if "Aadhar No" in nd.columns else None)
             save_and_backup(df, F)
             st.success("Bulk Data Imported!")
             st.rerun()
-        except: st.error("Import failed. Check file format.")
+        except: st.error("Import failed.")
 
 with t3:
     st.subheader("Global Search Engine")
-    q = st.text_input("Type anything to filter...", placeholder="Name, Aadhar, or Class...")
+    q = st.text_input("Type anything to filter...")
     v = df[df.astype(str).apply(lambda x: x.str.contains(q, case=False)).any(axis=1)] if q else df
     
     if "DOB" in v.columns and st.toggle("Show Age Column"):
@@ -132,12 +132,11 @@ with t4:
     if not df.empty:
         col_a, col_b = st.columns(2)
         if "Class" in df.columns: col_a.bar_chart(df["Class"].value_counts())
-        if "Division" in df.columns: col_b.pie_chart(df["Division"].value_counts())
-    else: st.info("No data to visualize.")
+        if "Division" in df.columns: col_b.bar_chart(df["Division"].value_counts())
+    else: st.info("No data available.")
 
 with t5:
     st.subheader("Live Grid Editor")
-    st.info("💡 Double-click any cell to edit. Changes are saved only when you click 'Apply Changes'.")
     e_df = st.data_editor(df, num_rows="dynamic", use_container_width=True)
     if st.button("✅ Apply All Changes"):
         save_and_backup(e_df, F)
