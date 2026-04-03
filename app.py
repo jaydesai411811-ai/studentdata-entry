@@ -1,8 +1,20 @@
 import streamlit as st, pandas as pd, os, datetime
 
-st.set_page_config(page_title="N M Wadia Tata-Wadia High School Nargol Hub", layout="wide")
+# --- PAGE CONFIG ---
+st.set_page_config(page_title="Valsad Hub Pro", layout="wide", initial_sidebar_state="expanded")
 
-# --- AUTOMATION 1: AUTO-BACKUP ENGINE ---
+# --- CUSTOM CSS FOR BETTER GUI ---
+st.markdown("""
+    <style>
+    .main { background-color: #f8f9fa; }
+    .stButton>button { width: 100%; border-radius: 5px; height: 3em; background-color: #007bff; color: white; }
+    .stTextInput>div>div>input { border-radius: 5px; }
+    .stMetric { background-color: #ffffff; padding: 10px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+    [data-testid="stSidebar"] { background-color: #f1f3f5; border-right: 1px solid #dee2e6; }
+    </style>
+    """, unsafe_allow_用水=True)
+
+# --- AUTOMATIONS ---
 if not os.path.exists("backups"): os.makedirs("backups")
 
 def save_and_backup(dataframe, filename):
@@ -10,126 +22,124 @@ def save_and_backup(dataframe, filename):
     ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     dataframe.to_excel(f"backups/auto_{ts}_{filename}", index=False)
 
-# --- UNIVERSAL FILE MANAGER ---
-st.sidebar.title("📁 File Manager")
-all_files = [f for f in os.listdir() if f.endswith('.xlsx')]
-if "db.xlsx" not in all_files: all_files.append("db.xlsx")
+# --- SIDEBAR: NAVIGATION & FILE MANAGER ---
+with st.sidebar:
+    st.image("https://img.icons8.com/fluency/96/database.png", width=80)
+    st.title("Admin Hub")
+    
+    st.subheader("📁 Database Selection")
+    all_files = [f for f in os.listdir() if f.endswith('.xlsx')]
+    if "db.xlsx" not in all_files: all_files.append("db.xlsx")
+    
+    selected_f = st.selectbox("Switch Active File:", all_files)
+    new_f = st.text_input("✨ Create New (.xlsx):", placeholder="e.g. class10.xlsx")
+    F = new_f if new_f else selected_f
 
-new_f = st.sidebar.text_input("Create new file (e.g. data.xlsx):")
-F = new_f if new_f else st.sidebar.selectbox("Active Database:", all_files)
+    st.markdown("---")
+    st.subheader("📊 System Status")
+    df = pd.read_excel(F)
+    st.metric("Total Records", len(df))
+    st.info("🤖 Auto-Backup: **ON**")
+    st.info("🧼 Auto-Clean: **ON**")
 
-# UPDATED COLUMN NAMES
+    # --- DUPLICATE SCANNER ---
+    if "Aadhar No" in df.columns and not df.empty:
+        dupes = df[df.duplicated(subset=['Aadhar No'], keep=False)]
+        if not dupes.empty:
+            st.warning(f"🚨 {len(dupes)} Duplicates Found!")
+
+    st.markdown("---")
+    if "Aadhar No" in df.columns:
+        st.subheader("🗑️ Fast Delete")
+        del_val = st.text_input("Enter Aadhar No:")
+        if st.button("Confirm Delete"):
+            if del_val in df["Aadhar No"].astype(str).values:
+                df = df[df["Aadhar No"].astype(str) != del_val]
+                save_and_backup(df, F)
+                st.rerun()
+
+# --- MAIN GUI ---
+st.title(f"🏫 Valsad Student Hub")
+st.caption(f"Currently managing: **{F}**")
+
 C = ["Sr No", "Name", "Class", "Division", "Aadhar No", "DOB", "DOB Words"]
 if not os.path.exists(F): pd.DataFrame(columns=C).to_excel(F, index=False)
 
 def gb(d):
- n=str.maketrans('0123456789','૦૧૨૩૪૫૬૭૮૯')
- m=["","જાન્યુઆરી","ફેબ્રુઆરી","માર્ચ","એપ્રિલ","મે","જૂન","જુલાઈ","ઓગસ્ટ","સપ્ટેમ્બર","ઓક્ટોબર","નવેમ્બર","ડિસેમ્બર"]
- return f"{str(d.day).translate(n)} {m[d.month]} {str(d.year).translate(n)}"
+    n=str.maketrans('0123456789','૦૧૨૩૪૫૬૭૮૯')
+    m=["","જાન્યુઆરી","ફેબ્રુઆરી","માર્ચ","એપ્રિલ","મે","જૂન","જુલાઈ","ઓગસ્ટ","સપ્ટેમ્બર","ઓક્ટોબર","નવેમ્બર","ડિસેમ્બર"]
+    return f"{str(d.day).translate(n)} {m[d.month]} {str(d.year).translate(n)}"
 
-df = pd.read_excel(F)
+# --- TABS WITH BETTER ICONS ---
+t1, t2, t3, t4, t5 = st.tabs(["📝 Add Student", "📂 Bulk Import", "🔎 Quick Search", "📊 Analytics", "🛠️ Advanced Edit"])
 
-# Sidebar: Stats & Admin Controls
-st.sidebar.markdown("---")
-st.sidebar.title("⚙️ Admin Controls")
-st.sidebar.metric("Total Records", len(df))
-st.sidebar.success("🤖 Automations: Active") 
-
-# --- AUTO-DUPLICATE SCANNER (Updated for Aadhar No) ---
-if "Aadhar No" in df.columns and not df.empty:
-    dupes = df[df.duplicated(subset=['Aadhar No'], keep=False)]
-    if not dupes.empty:
-        st.sidebar.warning(f"⚠️ Warning: {len(dupes)} duplicate Aadhar entries detected!")
-
-st.sidebar.markdown("---")
-st.sidebar.subheader("🗑️ Delete Record")
-
-if "Aadhar No" in df.columns:
-    del_val = st.sidebar.text_input("Enter Aadhar No to delete:")
-    if st.sidebar.button("Delete") and del_val in df["Aadhar No"].astype(str).values:
-        df = df[df["Aadhar No"].astype(str) != del_val]
-        save_and_backup(df, F)
-        st.rerun()
-else:
-    st.sidebar.info("Aadhar deletion is not applicable for this file.")
-
-st.title(f"🎓 Student Hub - [{F}]")
-
-# Organized Tabs
-t1, t2, t3, t4, t5 = st.tabs(["📝 Manual Entry", "📥 Bulk Import", "🔍 Search & Export", "📊 Analytics", "✏️ Live Edit"])
-
-# TAB 1: Manual Entry (Updated Columns)
 with t1:
+    st.subheader("Student Registration Form")
     if all(col in df.columns for col in C):
-        with st.form("f", clear_on_submit=True):
+        with st.container(border=True):
             col1, col2 = st.columns(2)
-            s, n = col1.number_input("Sr No", min_value=1), col2.text_input("Name")
-            c, d = col1.selectbox("Class", ["11", "12"]), col2.selectbox("Division", ["A", "B", "C"])
-            a, db = col1.text_input("Aadhar No (12 num)", max_chars=12), col2.date_input("DOB")
-            if st.form_submit_button("Save Record"):
-                n_clean = n.strip().title() if n else n
+            with col1:
+                s = st.number_input("Serial Number", min_value=1)
+                n = st.text_input("Full Name (Auto-Formatting)")
+                c = st.selectbox("Current Class", ["11", "12", "Other"])
+            with col2:
+                a = st.text_input("Aadhar Card No", max_chars=12)
+                d = st.selectbox("Division/Section", ["A", "B", "C", "D"])
+                db = st.date_input("Date of Birth", min_value=datetime.date(2000,1,1))
+            
+            if st.button("📥 Save to Database"):
+                n_clean = n.strip().title()
                 if n_clean and len(a)==12 and a not in df["Aadhar No"].astype(str).values:
-                    df.loc[len(df)] = [s,n_clean,c,d,a,db,gb(db)]
+                    df.loc[len(df)] = [s, n_clean, c, d, a, db, gb(db)]
                     save_and_backup(df, F)
-                    st.success("Saved!")
+                    st.success(f"Successfully added {n_clean}!")
                     st.rerun()
-                else: st.error("Invalid entry or Aadhar No already exists.")
-    else:
-        st.warning(f"Manual Entry disabled. '{F}' missing standard columns.")
+                else: st.error("Validation Error: Check Name, Aadhar length (12), or Duplicates.")
+    else: st.error("Standard columns missing in this file.")
 
-# TAB 2: Bulk Import
 with t2:
-    st.subheader(f"Import Data into {F}")
-    uploaded_file = st.file_uploader("Upload File", type=['csv', 'xlsx'])
-    if uploaded_file and st.button("Import Data"):
+    st.subheader("Data Migration Tool")
+    with st.expander("Show Required Format"):
+        st.write(f"Columns must be: {C}")
+    u = st.file_uploader("Upload CSV or Excel", type=['csv', 'xlsx'])
+    if u and st.button("🚀 Process Bulk Upload"):
         try:
-            new_data = pd.read_csv(uploaded_file) if uploaded_file.name.endswith('.csv') else pd.read_excel(uploaded_file)
-            if "Name" in new_data.columns:
-                new_data["Name"] = new_data["Name"].astype(str).str.strip().str.title()
-            if "Aadhar No" in df.columns and "Aadhar No" in new_data.columns:
-                existing_aadhars = df["Aadhar No"].astype(str).tolist()
-                new_data = new_data[~new_data["Aadhar No"].astype(str).isin(existing_aadhars)]
-            if not new_data.empty:
-                df = pd.concat([df, new_data])
-                save_and_backup(df, F)
-                st.success(f"Imported {len(new_data)} records!")
-                st.rerun()
-            else: st.warning("No new records added.")
-        except: st.error("Error reading file.")
+            nd = pd.read_csv(u) if u.name.endswith('.csv') else pd.read_excel(u)
+            if "Name" in nd.columns: nd["Name"] = nd["Name"].astype(str).str.title()
+            if "Aadhar No" in df.columns and "Aadhar No" in nd.columns:
+                nd = nd[~nd["Aadhar No"].astype(str).isin(df["Aadhar No"].astype(str).tolist())]
+            df = pd.concat([df, nd])
+            save_and_backup(df, F)
+            st.success("Bulk Data Imported!")
+            st.rerun()
+        except: st.error("Import failed. Check file format.")
 
-# TAB 3: Search & Export (Updated for DOB)
 with t3:
-    q = st.text_input("🔍 Search Database:")
-    if q:
-        mask = df.astype(str).apply(lambda col: col.str.contains(q, case=False)).any(axis=1)
-        v = df[mask]
-    else:
-        v = df.copy() 
-        
-    if "DOB" in v.columns and st.checkbox("🤖 Auto-Calculate Current Age"):
+    st.subheader("Global Search Engine")
+    q = st.text_input("Type anything to filter...", placeholder="Name, Aadhar, or Class...")
+    v = df[df.astype(str).apply(lambda x: x.str.contains(q, case=False)).any(axis=1)] if q else df
+    
+    if "DOB" in v.columns and st.toggle("Show Age Column"):
         v['DOB'] = pd.to_datetime(v['DOB'], errors='coerce')
-        today = pd.to_datetime(datetime.datetime.now())
-        v['Auto-Age'] = v['DOB'].apply(lambda x: today.year - x.year - ((today.month, today.day) < (x.month, x.day)) if pd.notnull(x) else None)
-        
+        tdy = pd.to_datetime(datetime.datetime.now())
+        v['Age'] = v['DOB'].apply(lambda x: tdy.year - x.year - ((tdy.month, tdy.day) < (x.month, x.day)) if pd.notnull(x) else None)
+    
     st.dataframe(v, use_container_width=True, hide_index=True)
-    st.download_button("📥 Export CSV", v.to_csv(index=False).encode('utf-8-sig'), f"export_{F}.csv")
+    st.download_button("📂 Export Results (CSV)", v.to_csv(index=False).encode('utf-8-sig'), f"export_{F}.csv")
 
-# TAB 4: Visual Analytics (Updated for Division)
 with t4:
-    st.subheader("Distribution")
+    st.subheader("Data Insights")
     if not df.empty:
-        c1, c2 = st.columns(2)
-        with c1: 
-            if "Class" in df.columns: st.write("**By Class**"); st.bar_chart(df["Class"].value_counts())
-        with c2: 
-            if "Division" in df.columns: st.write("**By Division**"); st.bar_chart(df["Division"].value_counts())
-    else: st.write("No data available yet.")
+        col_a, col_b = st.columns(2)
+        if "Class" in df.columns: col_a.bar_chart(df["Class"].value_counts())
+        if "Division" in df.columns: col_b.pie_chart(df["Division"].value_counts())
+    else: st.info("No data to visualize.")
 
-# TAB 5: Live Edit Feature
 with t5:
-    st.subheader(f"Live Editing: {F}")
+    st.subheader("Live Grid Editor")
+    st.info("💡 Double-click any cell to edit. Changes are saved only when you click 'Apply Changes'.")
     e_df = st.data_editor(df, num_rows="dynamic", use_container_width=True)
-    if st.button("Save All Edits"):
+    if st.button("✅ Apply All Changes"):
         save_and_backup(e_df, F)
-        st.success(f"Edits to {F} saved successfully!")
+        st.success("Database Updated!")
         st.rerun()
