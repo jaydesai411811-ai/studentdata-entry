@@ -23,8 +23,8 @@ if st.sidebar.button("Delete") and del_val in df["Aadhar"].astype(str).values:
 st.title("🎓 Student Hub - Pro Version")
 
 # Organized Tabs
-t1, t2, t3, t4 = st.tabs(["📝 Manual Entry", "📥 Bulk Import", "🔍 Search & Export", "📊 Analytics"])
-
+# Organized Tabs
+t1, t2, t3, t4, t5 = st.tabs(["📝 Manual Entry", "📥 Bulk Import", "🔍 Search & Export", "📊 Analytics", "✏️ Live Edit"])
 # TAB 1: Manual Entry
 with t1:
     with st.form("f", clear_on_submit=True):
@@ -67,3 +67,12 @@ with t4:
         with c1: st.write("**By Class**"); st.bar_chart(df["Class"].value_counts())
         with c2: st.write("**By Division**"); st.bar_chart(df["Div"].value_counts())
     else: st.write("No data available yet.")
+
+# TAB 5: Live Edit Feature
+with t5:
+    st.subheader("Edit Data Directly")
+    e_df = st.data_editor(df, num_rows="dynamic", use_container_width=True)
+    if st.button("Save All Edits"):
+        e_df.to_excel(F, index=False)
+        st.success("Edits saved successfully!")
+        st.rerun()
