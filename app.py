@@ -1,7 +1,6 @@
 import streamlit as st, pandas as pd, os
 
-st.set_page_config(page_title="N M Wadia Tata-Wadia High School HUB
-", layout="wide")
+st.set_page_config(page_title="N M Wadia Tata-Wadia High School HUB ", layout="wide")
 
 # --- NEW: UNIVERSAL FILE MANAGER ---
 st.sidebar.title("📁 File Manager")
